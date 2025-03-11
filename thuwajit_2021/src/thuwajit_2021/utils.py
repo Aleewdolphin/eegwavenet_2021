@@ -11,6 +11,9 @@ def load_models(device):
     models_path = os.path.join(dir_path, 'models')
     for fold in range(5):
         Model = EEGWaveNet(18, 2).float()
+        # features, classes, f_dim, v_dim
+        # Model = LDC(18, 2, 256, 4)
+        # This needs to be replaced with the path for the actual LDC model weights
         Model.load_state_dict(torch.load(os.path.join(models_path, 'model_fold_{}.pt'.format(fold+1)), weights_only=True))
         Model.eval()
         Model.to(device)
@@ -38,6 +41,7 @@ class SeizureDataset(nn.Module):
         data_filtered = np.zeros_like(data)
         for channel in range(data.shape[0]):
             data_filtered[channel, :] = signal.filtfilt(b, a, data[channel, :])
+        print("preprocessed")
         return data_filtered
     
     def __getitem__(self, idx):
@@ -63,6 +67,9 @@ def predict(models, dataloader, device, recording_duration, window_size_sec=4, o
                 pred = list(np.argmax(list(pred.cpu().detach().numpy()), axis=1))
                 y_preds += pred
         y_preds = np.array(y_preds)
+        # y_preds shape is in s
+        print("y_preds shape")
+        print(y_preds.shape)
 
         for i in range(len(y_preds)):
             # for each time point, assign majority of all overlaps

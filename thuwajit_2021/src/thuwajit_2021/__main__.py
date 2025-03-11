@@ -2,6 +2,7 @@ if __name__ == "__main__":
     import argparse
     from thuwajit_2021.main import main
 
+    print("__main__")
     parser = argparse.ArgumentParser(
         description="Run a seizure detection algorithm on an EDF file and store computed seizure annotations to a TSV."
     )
