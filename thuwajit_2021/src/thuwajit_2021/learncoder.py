@@ -24,7 +24,7 @@ class Encoder(nn.Module):
         # print(f'bsize is {bsize} and batch_size is {batch_size}')
         for i in range(0, batch_size, bsize):
             batch = x[i:i+bsize]  # (bsize, channels, timepoints)
-            batch = torch.round(batch * 2) / 2
+            # batch = torch.round(batch * 2) / 2
             bsize = batch.shape[0]
             
             batch_encoded_values = self.encode_value(batch)  # Already in (bsize, timepoints, dim)

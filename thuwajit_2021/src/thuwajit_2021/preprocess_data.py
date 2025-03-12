@@ -223,6 +223,7 @@ def load_and_split_data(base_dir, test_size=0.2, random_state=42, save_dir=None)
     test_pairs = []
     split_info = {}  # Detailed split information
     
+    # sanity check on the data
     print("\nSplitting files by subject:")
     for subject, files in subject_files.items():
         split_info[subject] = {

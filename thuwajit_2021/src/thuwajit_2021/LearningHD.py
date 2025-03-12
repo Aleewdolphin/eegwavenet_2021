@@ -6,6 +6,8 @@ from tqdm import tqdm, trange
 import time
 import numpy as np
 from collections import Counter
+from sklearn.metrics import f1_score
+
 
 import pudb
 
@@ -31,6 +33,7 @@ class LearningHD(nn.Module):
     def encode(self, x):
         print(f"Encoding data batch of shape {x.shape}...")
         return self.encoder(x)
+
     
     def fit(self, x_path, y_path, x_test_path, y_test_path, epochs=30):
         print("\nStarting training (fit function)...")
@@ -45,6 +48,14 @@ class LearningHD(nn.Module):
         y_shape = np.load(y_path, mmap_mode='r').shape
         x_test_shape = np.load(x_test_path, mmap_mode='r').shape
         y_test_shape = np.load(y_test_path, mmap_mode='r').shape
+
+        x_mean = np.mean(x_data, axis=2, keepdims=True)  # Compute mean per channel across time points
+        x_std = np.std(x_data, axis=2, keepdims=True)
+        x_data = (x_data - x_mean) / (x_std + 1e-8) # Add small epsilon to avoid division by zero
+
+        x_test_mean = np.mean(x_test_data, axis=2, keepdims=True)
+        x_test_std = np.std(x_test_data, axis=2, keepdims=True)
+        x_test_data = (x_test_data - x_test_mean) / (x_test_std + 1e-8)
 
         optimizer = torch.optim.Adam(self.parameters(), lr=0.001)
         criterion = nn.CrossEntropyLoss()
@@ -63,6 +74,9 @@ class LearningHD(nn.Module):
             loss = criterion(output, y)
             loss.backward()
             optimizer.step()
+
+            y_train_pred = self.predict(x)
+            train_acc = (y_train_pred == y).float().mean().item()
             
             self.eval()
             with torch.no_grad():
@@ -71,7 +85,13 @@ class LearningHD(nn.Module):
                 # get test accuracy
                 y_pred = self.predict(x_test)
                 acc = (y_pred == y_test).float().mean().item()
-                print(f'Epoch {epoch + 1}/{epochs} - Loss: {loss.item()} - Test Loss: {test_loss.item()} - Test Accuracy: {acc}')
+
+                y_test_np = y_test.numpy()
+
+                # Compute F1 score (set `average='macro'` for multi-class classification)
+                f1 = f1_score(y_test_np, y_pred, average='macro')
+
+                print(f'Epoch {epoch + 1}/{epochs} - Loss: {loss.item()} - Train Acc: {train_acc:.4f} - Test Loss: {test_loss.item()} - Test Accuracy: {acc} - F1 Score: {f1:.4f}')
             
             epoch += 1
             if epochs > 0 and epoch >= epochs:
@@ -144,9 +164,18 @@ class LearningHD(nn.Module):
     
     def predict(self, x):
         # pudb.set_trace()
-        pred= self(x).argmax(1)
+        # pred= self(x).argmax(1)
 
-        # pred =  (self(x) - self(x).mean(axis=0)).numpy().argmax(1)
-        from collections import Counter
-        print(Counter(list(pred)))
+        import torch.nn.functional as F
+
+        threshold = 0.3
+        probs = F.softmax(self(x), dim=1).detach().numpy()
+        seizure_probs = probs[:, 1]
+        pred = (seizure_probs > threshold).astype(int)
+
+        # pred = probs.argmax(1)
+
+        # from collections import Counter
+        # pred = (self(x) - self(x).mean(axis=0)).detach().numpy().argmax(1)
+        # print(Counter(list(pred)))
         return pred
